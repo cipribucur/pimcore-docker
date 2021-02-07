@@ -1,0 +1,79 @@
+version: '3.5'
+services:
+  redis:
+    image: redis:alpine
+    container_name: pimcore-redis
+
+  php:
+    container_name: ${PROJECT_NAME}-php
+    build:
+      context: ./build/php/
+    environment:
+      DB_HOST: "db"
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DOCKER_NAME: ${PROJECT_NAME}-php
+      ENVIRONMENT: ${ENVIRONMENT}
+      OPCACHE_ENABLE: 0
+      OPCACHE_ENABLE_CLI: 0
+      PHP_IDE_CONFIG: "serverName=pimcore"
+      PHP_POST_MAX_SIZE: "100M"
+      PHP_UPLOAD_MAX_FILESIZE: "100M"
+      PROJECT_PATH: "/var/www/pimcore/"
+      XDEBUG_CONFIG: "idekey=PHPSTORM remote_host=192.168.128.1 remote_port=9001 remote_enable=1 max_nesting_level=500"
+    networks:
+      - backend
+    restart: "no"
+    volumes:
+      - composer_cache:/var/www/.composer:cached
+      - ./src/pimcore/:/var/www/pimcore/
+    working_dir: /app
+
+  db:
+    container_name: ${PROJECT_NAME}-db
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}     
+      MYSQL_USER: ${DB_USERNAME}
+    image: mysql:latest
+    networks:
+      - backend
+    ports:
+      - 4321:3306
+    restart: "no"
+    volumes:
+      - ./config/db/:/etc/mysql/conf.d/
+      - db:/var/lib/mysql
+
+  webserver:
+    container_name: ${PROJECT_NAME}-webserver
+    environment:
+      DOCKER_NAME: ${PROJECT_NAME}-${ENVIRONMENT}-webserver
+      ENVIRONMENT: ${ENVIRONMENT}
+      NGINX_ROOT_PATH: "/var/www/pimcore/web/"
+      NGINX_SERVER_NAME: ${PROJECT_NAME}.elem
+      PHP_HOST_SHOP: php
+      PHP_PORT_SHOP: 9000
+    depends_on:
+      - php
+    image: nginx:latest
+    networks:
+      - backend
+    ports:
+      - 80:80
+      - 443:443
+    restart: "no"
+    volumes:
+      - ./config/webserver/certs/:/etc/ssl/private/
+      - ./config/webserver/templates/:/etc/nginx/templates/
+      - ./src/pimcore/:/var/www/pimcore/   
+
+networks:
+  backend:
+    name: ${PROJECT_NAME}-backend
+
+volumes:
+  db:
+  composer_cache:

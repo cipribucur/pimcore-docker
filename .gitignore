@@ -1,0 +1,10 @@
+/src/pimcore/*
+/src/*
+docker-compose.override.yml
+
+.env
+.idea
+.vscode
+.docker-sync
+.priv
+
